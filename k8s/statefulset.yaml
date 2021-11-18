@@ -1,0 +1,145 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: flink-jobmanager
+spec:
+  serviceName: flink-jobmanager
+  replicas: 1
+  selector:
+    matchLabels:
+      app: flink
+      component: jobmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: jobmanager
+    spec:
+      securityContext:
+        runAsUser: 9999
+        fsGroup: 9999
+      containers:
+      - name: jobmanager
+        image: 281050902442.dkr.ecr.eu-central-1.amazonaws.com/hackathon-2021-stateful-flink-process/flink:1.15-SNAPSHOT
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "1000m"
+        env:
+          - name: ENABLE_BUILT_IN_PLUGINS
+            value: "flink-s3-fs-hadoop-1.15-SNAPSHOT.jar"
+        args: ["jobmanager"]
+        ports:
+        - containerPort: 6123
+          name: rpc
+        - containerPort: 6124
+          name: blob-server
+        - containerPort: 8081
+          name: webui
+        livenessProbe:
+          tcpSocket:
+            port: 6123
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config
+          mountPath: /opt/flink/conf
+        - name: process-state
+          mountPath: /process-state
+      serviceAccountName: flink-high-availability # Service account which has the permissions to create, edit, delete ConfigMaps
+      volumes:
+      - name: flink-config
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j-console.properties
+            path: log4j-console.properties
+  volumeClaimTemplates:
+  - metadata:
+      name: process-state
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+
+---
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: flink-taskmanager
+spec:
+  serviceName: flink-taskmanager
+  replicas: 2
+  selector:
+    matchLabels:
+      app: flink
+      component: taskmanager
+  template:
+    metadata:
+      labels:
+        app: flink
+        component: taskmanager
+    spec:
+      securityContext:
+        runAsUser: 9999
+        fsGroup: 9999
+      containers:
+      - name: taskmanager
+        image: 281050902442.dkr.ecr.eu-central-1.amazonaws.com/hackathon-2021-stateful-flink-process/flink:1.15-SNAPSHOT
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "1000m"
+        env:
+          - name: ENABLE_BUILT_IN_PLUGINS
+            value: "flink-s3-fs-hadoop-1.15-SNAPSHOT.jar"
+          - name: POD_NAME
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+        args: ["taskmanager", "-Dtaskmanager.resource-id=$(POD_NAME)"]
+        ports:
+        - containerPort: 6121
+          name: metrics
+        - containerPort: 6122
+          name: rpc
+        - containerPort: 6125
+          name: query-state
+        livenessProbe:
+          tcpSocket:
+            port: 6122
+          initialDelaySeconds: 30
+          periodSeconds: 60
+        volumeMounts:
+        - name: flink-config
+          mountPath: /opt/flink/conf
+        - name: process-state
+          mountPath: /process-state
+      serviceAccountName: flink-high-availability # Service account which has the permissions to create, edit, delete ConfigMaps
+      volumes:
+      - name: flink-config
+        configMap:
+          name: flink-config
+          items:
+          - key: flink-conf.yaml
+            path: flink-conf.yaml
+          - key: log4j-console.properties
+            path: log4j-console.properties
+  volumeClaimTemplates:
+  - metadata:
+      name: process-state
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi

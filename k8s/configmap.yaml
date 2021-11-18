@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flink-config
+  labels:
+    app: flink
+data:
+  flink-conf.yaml: |+
+    parallelism.default: 2
+    jobmanager.memory.process.size: 4096m
+    taskmanager.memory.process.size: 4096m
+    taskmanager.numberOfTaskSlots: 1
+    taskmanager.state.local.root-dirs: /process-state/local-recovery
+    jobmanager.rpc.address: flink-jobmanager
+    taskmanager.rpc.port: 6122
+    jobmanager.rpc.port: 6123
+    blob.server.port: 6124
+    queryable-state.proxy.ports: 6125
+    state.backend: rocksdb
+    state.backend.rocksdb.localdir: /process-state/rocksdb
+    state.checkpoint-storage: filesystem
+    state.checkpoints.dir: s3://hackathon-2021-stateful-flink-process/checkpoints
+    state.savepoints.dir: s3://hackathon-2021-stateful-flink-process/savepoints
+    high-availability.storageDir: s3://hackathon-2021-stateful-flink-process/highavailability
+    high-availability: org.apache.flink.kubernetes.highavailability.KubernetesHaServicesFactory
+    kubernetes.cluster-id: hackathon-2021-stateful-flink-process
+    kubernetes.namespace: hackathon-2021-stateful-flink-process
+  log4j-console.properties: |+
+    # This affects logging for both user code and Flink
+    rootLogger.level = INFO
+    rootLogger.appenderRef.console.ref = ConsoleAppender
+    rootLogger.appenderRef.rolling.ref = RollingFileAppender
+
+    # Uncomment this if you want to _only_ change Flink's logging
+    #logger.flink.name = org.apache.flink
+    #logger.flink.level = INFO
+
+    # The following lines keep the log level of common libraries/connectors on
+    # log level INFO. The root logger does not override this. You have to manually
+    # change the log levels here.
+    logger.akka.name = akka
+    logger.akka.level = INFO
+    logger.kafka.name= org.apache.kafka
+    logger.kafka.level = INFO
+    logger.hadoop.name = org.apache.hadoop
+    logger.hadoop.level = INFO
+    logger.zookeeper.name = org.apache.zookeeper
+    logger.zookeeper.level = INFO
+    logger.state.name = org.apache.flink.runtime.state
+    logger.state.level = DEBUG
+    logger.rocksdbcontrib.name = org.apache.flink.contrib.streaming.state.restore
+    logger.rocksdbcontrib.level = DEBUG
+    logger.jobmaster.name = org.apache.flink.runtime.jobmaster.JobMaster
+    logger.jobmaster.level = DEBUG
+
+    # Log all infos to the console
+    appender.console.name = ConsoleAppender
+    appender.console.type = CONSOLE
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+
+    # Log all infos in the given rolling file
+    appender.rolling.name = RollingFileAppender
+    appender.rolling.type = RollingFile
+    appender.rolling.append = false
+    appender.rolling.fileName = ${sys:log.file}
+    appender.rolling.filePattern = ${sys:log.file}.%i
+    appender.rolling.layout.type = PatternLayout
+    appender.rolling.layout.pattern = %d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %-60c %x - %m%n
+    appender.rolling.policies.type = Policies
+    appender.rolling.policies.size.type = SizeBasedTriggeringPolicy
+    appender.rolling.policies.size.size=100MB
+    appender.rolling.strategy.type = DefaultRolloverStrategy
+    appender.rolling.strategy.max = 10
+
+    # Suppress the irrelevant (wrong) warnings from the Netty channel handler
+    logger.netty.name = org.jboss.netty.channel.DefaultChannelPipeline
+    logger.netty.level = OFF

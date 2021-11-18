@@ -22,3 +22,5 @@ build-target
 out/
 *.ipr
 *.iws
+flink/*
+!flink/.gitkeep
