@@ -57,7 +57,7 @@ public class StreamingJob {
         env.getCheckpointConfig().setCheckpointTimeout(TimeUnit.SECONDS.toMillis(
                 Integer.parseInt(params.get("checkpoint-timeout", "60"))));
 
-        final int keysNumber = Integer.parseInt(params.get("checkpoint-timeout", "65536"));
+        final int keysNumber = Integer.parseInt(params.get("keys", "65536"));
         final int stateSize = (int) (1024L * 1024L * 1024L * Long.parseLong(params.get("total-state-size", "12")) / keysNumber);
 
         // execute program
